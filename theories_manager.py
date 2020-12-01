@@ -1,4 +1,5 @@
 import json
+import random
 import os.path
 from theory import Theory
 
@@ -42,15 +43,15 @@ class TheoriesManager:
     def new_theory(self, observation, action_jump):
         return Theory(observation, action_jump)
 
-    def finish_and_add_theory(self, theory, observation):
-        self.finish_theory(theory, observation)
+    def finish_and_add_theory(self, theory, observation, just_restarted):
+        self.finish_theory(theory, observation, just_restarted)
         self.add_or_update_theory(theory)
 
-    def finish_theory(self, theory, new_observation):
+    def finish_theory(self, theory, new_observation, just_restarted):
         theory.set_observation_after(new_observation)
-        utility = self.calculate_theory_utility(theory)
+        utility = self.calculate_theory_utility(theory, just_restarted)
         theory.set_utility(utility)
-        theory.add_use()
+        theory.set_uses(1)
 
     def add_or_update_theory(self, theory):
         key = theory.get_theory_code()
@@ -58,33 +59,40 @@ class TheoriesManager:
             theories_for_context = self.theories[key]
             existing_theory = self.theory_already_exists(theories_for_context, theory)
             if existing_theory is not None:
-                self.merge_theories(theory, existing_theory)
+                existing_theory.add_use()
             else:
                 theories_for_context.append(theory)
         else:
             self.theories[key] = [theory]
 
-    def calculate_theory_utility(self, theory):
+    def update_theory(self, theory):
+        key = theory.get_theory_code()
+        if key in self.theories:
+            theories_for_context = self.theories[key]
+            existing_theory = self.theory_already_exists(theories_for_context, theory)
+            if existing_theory is not None:
+                existing_theory.add_use()
+
+    def calculate_theory_utility(self, theory, just_restarted):
         new_state = theory.get_observation_after()
         if new_state.get_dead_state():
             return -1000
+        if just_restarted:
+            return -100
         previous_state = theory.get_observation_before()
         if new_state.get_blocks_count() > previous_state.get_blocks_count():
             return 20
         elif self.was_pushed_back(previous_state, new_state):
-            return -10
+            return -100
         else:
             return self.evaluate_distance_to_gap(previous_state, new_state)
 
     def theory_already_exists(self, theories, theory):
         existing_theory = None
         for i in theories:
-            if theory.equals(i):
+            if i.equals(theory):
                 existing_theory = i
         return existing_theory
-
-    def merge_theories(self, theory, existing_theory):
-        existing_theory.add_use()
 
     def was_pushed_back(self, previous_state, new_state):
         previous_positions = previous_state.get_relative_positions()
@@ -105,29 +113,29 @@ class TheoriesManager:
         # TODO: improve calculation, now too hardcodey
         over_bottom = rel_positions[2]
         below_upper = rel_positions[3]
-        return abs(over_bottom) + abs(below_upper)
+        return over_bottom ** 2 + below_upper ** 2
 
     def get_best_theory(self, observation):
         theory_code = observation.get_code()
         best_theory = None
-        multiple_theories = False
+        both_actions_already_explored = False
         if theory_code in self.theories:
-            candidate_theories = self.get_useful_theories(self.theories[theory_code])
-            if len(candidate_theories) > 0:
-                best_theory = self.theory_with_greatest_utility(candidate_theories)
-                multiple_theories = len(candidate_theories) > 1
-        return best_theory, multiple_theories
+            both_actions_already_explored = len(self.explored_actions(self.theories[theory_code])) == 2
+            best_theory = self.theory_with_greatest_utility(self.theories[theory_code])
+        return best_theory, both_actions_already_explored
 
-    def get_useful_theories(self, theories):
-        useful_utility = 0
-        useful_theories = []
+    def explored_actions(self, theories):
+        actions = []
         for theory in theories:
-            if theory.get_utility() > useful_utility:
-                useful_theories.append(theory)
-        return useful_theories
+            actions.append(theory.get_jump())
+        return set(actions)
 
     def theory_with_greatest_utility(self, candidate_theories):
         greatest_utility_theory = candidate_theories[0]
+        # weird trick to avoid some loops
+        if random.randint(0, 2) == 2:
+            index = len(candidate_theories) - 1
+            greatest_utility_theory = candidate_theories[index]
         for possible_theory in candidate_theories:
             if possible_theory.get_utility() > greatest_utility_theory.get_utility():
                 greatest_utility_theory = possible_theory

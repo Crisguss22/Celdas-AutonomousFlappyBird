@@ -18,6 +18,7 @@ class Theory:
         new_theory.set_observation_after(observation_after)
         new_theory.set_utility(json['utility'])
         new_theory.set_uses(json['times_used'])
+        return new_theory
 
     def get_observation_before(self):
         return self.observation_before
@@ -60,6 +61,11 @@ class Theory:
         return (self.observation_after is not None and
                 self.times_used > 0 and
                 self.utility != 0)
+
+    def is_correct(self, actual_observation):
+        if self.observation_after is None:
+            return False
+        return self.observation_after.equals(actual_observation)
 
     def to_hash(self):
         return {
