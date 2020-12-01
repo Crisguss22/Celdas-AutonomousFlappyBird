@@ -47,11 +47,11 @@ class Agent:
             self.current_theory = None
             self.bird_act(False)
         else:
-            if self.action_counter > 1 and self.action_counter % 2000 == 0:
+            if self.action_counter > 1 and self.action_counter % 10000 == 0:
                 self.theories_manager.save_theories_to_json('theories_saved.json')
             jump = self.choose_action()
             self.action_counter += 1
-            self.turns_for_jump = 1
+            self.turns_for_jump = 2
             self.bird_act(jump)
 
     def choose_action(self):
@@ -70,6 +70,9 @@ class Agent:
         theory_was_correct = self.current_theory.is_correct(self.current_observation)
         if theory_is_finished and theory_was_correct:
             self.theories_manager.update_theory(self.current_theory)
+        elif theory_is_finished:
+            new_theory = self.theories_manager.new_theory(self.current_theory.get_observation_before(), self.current_theory.get_jump())
+            self.theories_manager.finish_and_add_theory(new_theory, self.current_observation, self.just_restarted)
         else:
             self.theories_manager.finish_and_add_theory(self.current_theory, self.current_observation, self.just_restarted)
 
@@ -84,7 +87,7 @@ class Agent:
 
     def bird_act(self, jump):
         if jump:
-            self.turns_for_jump = 2
+            self.turns_for_jump = 3
             self.flappybird.holdKeyDown()
         else:
             self.flappybird.releaseKey()

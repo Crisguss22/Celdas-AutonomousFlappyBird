@@ -24,31 +24,21 @@ class Observation:
         self.y_distance_below_upper = self.weird_scale_distance(bird_position[1] - upper_block[1] - upper_block[3])
         # negative if higher than gap
 
-    def get_relative_positions(self,):
+    def get_relative_positions(self):
         return [self.x_distance, self.bird_height, self.y_distance_over_bottom, self.y_distance_below_upper]
 
     def round_distance(self, distance, scale):
         return (distance + scale // 2) // scale
 
     def weird_scale_distance(self, distance):
-        if -40 < distance < 40:
+        if -80 < distance < 80:
             return self.round_distance(distance, 2)
         negative = distance < 0
-        distance_round_down = self.round_distance(abs(distance), 5) + 21
+        distance_round_down = self.round_distance(abs(distance), 5) + 25
         if negative:
             return distance_round_down * -1
         else:
             return distance_round_down
-
-    def log_scale_distance(self, distance):
-        if -2 < distance < 2:
-            return distance
-        negative = distance < 0
-        distance_scaled = math.ceil(math.log(abs(distance), 1.15))
-        if negative:
-            return distance_scaled * -1
-        else:
-            return distance_scaled
 
     def get_dead_state(self):
         return self.dead_state
