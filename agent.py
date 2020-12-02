@@ -17,7 +17,7 @@ class Agent:
         self.just_restarted = False
         self.turns_for_jump = 0
 
-    def init(self):    
+    def init(self):
         pass
 
     """
@@ -26,23 +26,21 @@ class Agent:
      """
 
     def print_relevant(self):
+        print('-----------------')
         print("Cycles: ", self.action_counter)
         print("Current Observation: ", self.current_observation.get_code())
         print("Dead: ", self.flappybird.dead)
-        print("Theory count: ", self.theories_manager.theories_size()) #Not really theory count, just based on hash code
+        print("Theory count: ", self.theories_manager.theories_size()) #Not really theory count, actually scenarios theorized about
 
     def act(self):
         if self.turns_for_jump > 0:
             self.turns_for_jump -= 1
             self.bird_act(False)
             return
-        print('-----------------')
         self.observe_world()
         if self.current_theory is not None:
             self.update_theory()
         self.print_relevant()
-        if self.action_counter == 200:
-            self.theories_manager.save_theories_to_json('theories_saved.json')
         if self.current_observation.get_dead_state():
             self.current_theory = None
             self.bird_act(False)
@@ -51,18 +49,18 @@ class Agent:
                 self.theories_manager.save_theories_to_json('theories_saved.json')
             jump = self.choose_action()
             self.action_counter += 1
-            self.turns_for_jump = 2
+            self.turns_for_jump = 4
             self.bird_act(jump)
 
     def choose_action(self):
         if self.action_counter < 2000:
             self.act_from_theories_with_exploration(19)
-        elif self.action_counter < 4000:
+        elif self.action_counter < 5000:
             self.act_from_theories_with_exploration(10)
-        elif self.action_counter < 6000:
+        elif self.action_counter < 10000:
             self.act_from_theories_with_exploration(5)
         else:
-            self.act_from_theories_with_exploration(1)
+            self.act_from_theories_with_exploration(2)
         return self.current_theory.get_jump()
 
     def update_theory(self):
@@ -87,32 +85,44 @@ class Agent:
 
     def bird_act(self, jump):
         if jump:
-            self.turns_for_jump = 3
+            self.turns_for_jump = 9
             self.flappybird.holdKeyDown()
         else:
             self.flappybird.releaseKey()
 
-    def run(self):  
+    def run(self):
         self.flappybird.initGame()
         while True:
-            self.flappybird.eachCicle()            
+            self.flappybird.eachCicle()
             self.act()
 
     def act_from_theories_with_exploration(self, probability):
         should_not_explore = self.my_random() > probability
-        best_theory, both_actions_already_explored = self.theories_manager.get_best_theory(self.current_observation)
+        best_theory, both_actions_already_explored, death_actions = self.theories_manager.get_best_theory(self.current_observation)
         if best_theory is not None:
+            theory_may_cause_death = death_actions[int(best_theory.get_jump())]
+            if death_actions[0] and death_actions[1]:
+                # theory_may_cause_death = False
+                print('DEATH FOR BOTH ACTIONS')
+            elif theory_may_cause_death:
+                print('POSSIBLE DEATH!! IF ', best_theory.get_jump())
             if both_actions_already_explored or should_not_explore:
-                print('THEORY BASED: ', best_theory.get_jump())
                 self.current_theory = best_theory
+                print('THEORY BASED: ', self.next_action())
             else:
                 opposite_action = not best_theory.get_jump()
-                print('EXPLORING: ', opposite_action)
                 self.current_theory = self.theories_manager.new_theory(self.current_observation, opposite_action)
+                print('EXPLORING: ', self.next_action())
         else:
             self.random_act()
 
     def random_act(self):
         jump = self.my_random() == 2
-        print('ACTING RANDOM: ', jump)
         self.current_theory = self.theories_manager.new_theory(self.current_observation, jump)
+        print('ACTING RANDOM: ', self.next_action())
+
+    def next_action(self):
+        if self.current_theory.get_jump():
+            return 'JUMP'
+        else:
+            return 'FALL'

@@ -4,9 +4,13 @@ import math
 class Observation:
     def __init__(self, count, dead):
         self.x_distance = 0
+        self.x_distance_s = 0
         self.bird_height = 0
+        self.bird_height_s = 0
         self.y_distance_over_bottom = 0
+        self.y_distance_over_bottom_s = 0
         self.y_distance_below_upper = 0
+        self.y_distance_below_upper_s = 0
         self.blocks_count = count
         self.dead_state = dead
 
@@ -17,24 +21,44 @@ class Observation:
 
     def set_relative_positions(self, positions):
         bottom_block, upper_block, bird_position = positions[0], positions[1], positions[2]
-        self.x_distance = self.weird_scale_distance(upper_block[0] - bird_position[0])
-        self.bird_height = self.round_distance(720 - bird_position[1], 5)
-        self.y_distance_over_bottom = self.weird_scale_distance(bottom_block[1] - bird_position[1] - bird_position[3])
+        self.x_distance = upper_block[0] - bird_position[0]
+        self.bird_height = 720 - bird_position[1]
+        self.y_distance_over_bottom = bottom_block[1] - bird_position[1] - bird_position[3] - 5
         # negative if lower than gap
-        self.y_distance_below_upper = self.weird_scale_distance(bird_position[1] - upper_block[1] - upper_block[3])
+        self.y_distance_below_upper = bird_position[1] - upper_block[1] - upper_block[3]
         # negative if higher than gap
+        self.simplify_relative_positions()
+
+    def simplify_relative_positions(self):
+        self.x_distance_s = self.weird_extra_scale_distance(self.x_distance)
+        self.bird_height_s = self.round_distance(self.bird_height, 20)
+        self.y_distance_over_bottom_s = self.weird_scale_distance(self.y_distance_over_bottom)
+        self.y_distance_below_upper_s = self.weird_scale_distance(self.y_distance_below_upper)
 
     def get_relative_positions(self):
         return [self.x_distance, self.bird_height, self.y_distance_over_bottom, self.y_distance_below_upper]
+
+    def get_simplified_relative_positions(self):
+        return [self.x_distance_s, self.bird_height_s, self.y_distance_over_bottom_s, self.y_distance_below_upper_s]
 
     def round_distance(self, distance, scale):
         return (distance + scale // 2) // scale
 
     def weird_scale_distance(self, distance):
-        if -80 < distance < 80:
-            return self.round_distance(distance, 2)
+        if -6 < distance < 6:
+            return distance
         negative = distance < 0
-        distance_round_down = self.round_distance(abs(distance), 5) + 25
+        distance_round_down = math.ceil(math.log(abs(distance), 1.61)) + 2
+        if negative:
+            return distance_round_down * -1
+        else:
+            return distance_round_down
+
+    def weird_extra_scale_distance(self, distance):
+        if -5 < distance < 5:
+            return distance
+        negative = distance < 0
+        distance_round_down = math.ceil(math.log(abs(distance), 2)) + 2
         if negative:
             return distance_round_down * -1
         else:
@@ -50,7 +74,7 @@ class Observation:
         return self.get_code() == observation.get_code()
 
     def get_code(self):
-        return 'xd{0}bh{1}ob{2}bu{3}de{4}'.format(self.x_distance, self.bird_height, self.y_distance_over_bottom, self.y_distance_below_upper, int(self.dead_state))
+        return 'xd{0}ob{1}bu{2}de{3}'.format(self.x_distance_s, self.y_distance_over_bottom_s, self.y_distance_below_upper_s, int(self.dead_state))
 
     @classmethod
     def from_hash(cls, json):
@@ -61,6 +85,7 @@ class Observation:
         new_observation.set_bird_height(json['bird_height'])
         new_observation.set_y_distance_over_bottom(json['y_distance_over_bottom'])
         new_observation.set_y_distance_below_upper(json['y_distance_below_upper'])
+        new_observation.simplify_relative_positions()
         return new_observation
 
     def to_hash(self):

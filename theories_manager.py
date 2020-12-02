@@ -119,10 +119,11 @@ class TheoriesManager:
         theory_code = observation.get_code()
         best_theory = None
         both_actions_already_explored = False
+        theory_may_cause_death = False
         if theory_code in self.theories:
             both_actions_already_explored = len(self.explored_actions(self.theories[theory_code])) == 2
-            best_theory = self.theory_with_greatest_utility(self.theories[theory_code])
-        return best_theory, both_actions_already_explored
+            best_theory, theory_may_cause_death = self.theory_with_greatest_utility(self.theories[theory_code])
+        return best_theory, both_actions_already_explored, theory_may_cause_death
 
     def explored_actions(self, theories):
         actions = []
@@ -136,7 +137,10 @@ class TheoriesManager:
         if random.randint(0, 2) == 2:
             index = len(candidate_theories) - 1
             greatest_utility_theory = candidate_theories[index]
+        death_actions = [False, False]
         for possible_theory in candidate_theories:
+            if possible_theory.get_utility() < -50 and possible_theory.get_times_used() > 50:
+                death_actions[int(possible_theory.get_jump())] = True
             if possible_theory.get_utility() > greatest_utility_theory.get_utility():
                 greatest_utility_theory = possible_theory
-        return greatest_utility_theory
+        return greatest_utility_theory, death_actions
