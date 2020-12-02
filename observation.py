@@ -55,10 +55,10 @@ class Observation:
             return distance_round_down
 
     def weird_extra_scale_distance(self, distance):
-        if -5 < distance < 5:
-            return distance
+        if -90 < distance < 90:
+            return 0
         negative = distance < 0
-        distance_round_down = math.ceil(math.log(abs(distance), 2)) + 2
+        distance_round_down = math.ceil(math.log(abs(distance), 2)) + 84
         if negative:
             return distance_round_down * -1
         else:

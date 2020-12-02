@@ -80,9 +80,7 @@ class TheoriesManager:
         if just_restarted:
             return -100
         previous_state = theory.get_observation_before()
-        if new_state.get_blocks_count() > previous_state.get_blocks_count():
-            return 20
-        elif self.was_pushed_back(previous_state, new_state):
+        if self.was_pushed_back(previous_state, new_state):
             return -100
         else:
             return self.evaluate_distance_to_gap(previous_state, new_state)
