@@ -36,13 +36,18 @@ class TheoriesManager:
             json.dump(data, f)
 
     def theories_to_json(self):
-        theories_json = {}
-        for code in self.theories.keys():
-            theories = []
-            for theory in self.theories[code]:
-                theories.append(theory.to_hash())
-            theories_json[code] = theories
+        theories_json = {'theories': self.theories_hash(self.theories),
+                         'mutant_theories': self.theories_hash(self.mutant_theories)}
         return theories_json
+
+    def theories_hash(self, theories):
+        theories_hash = {}
+        for code in theories.keys():
+            theories = []
+            for theory in theories[code]:
+                theories.append(theory.to_hash())
+            theories_hash[code] = theories
+        return theories_hash
 
     def theories_size(self):
         return len(self.theories)
@@ -158,45 +163,73 @@ class TheoriesManager:
         return greatest_utility_theory, death_actions
 
     def update_mutant_theories(self, theory):
-        if theory.get_times_used() < 5:
+        if theory.get_times_used() < 3:
             return
-        added = self.add_to_mutants()
+        added = self.add_to_mutants(theory)
         if added:
-            self.remove_theory(theory)
+            self.remove_normal_theory(theory)
 
     def add_to_mutants(self, theory):
         mutant_theory, missing_action = self.theory_mutator.mutated_theory_available(self.mutant_theories, theory)
+        print('-----------------')
+        print('-----------------')
         if mutant_theory is not None:
+            print('EXISTING MUTANT THEORY')
             mutant_theory.add_use()
         elif missing_action:
+            print('MISSING ACTION')
             mutant_theory = self.theory_mutator.mutation_for_new_action(theory)
             self.add_or_replace_mutant_theory(None, mutant_theory)
         else:
-            mutant_theory, old_mutant_theory = self.theory_mutator.new_mutation(self.theories, self.mutant_theories, theory)
+            print('NEW MUTANT THEORY')
+            mutant_theory, old_mutant_theory = self.theory_mutator.new_mutation(self.mutant_theories, theory)
             self.add_or_replace_mutant_theory(old_mutant_theory, mutant_theory)
+        self.print_relevant(mutant_theory)
         return mutant_theory is not None
 
+    def print_relevant(self, theory):
+        if theory is None:
+            return
+        print('-----------------')
+        print("Theory Code: ", theory.get_theory_code())
+        print("Current Mut Limits: ", self.theory_mutator.get_current_limits())
+        print("Mutant Theory count: ", len(self.mutant_theories))
+        print('-----------------')
+
     def remove_normal_theory(self, theory):
+        print('-----------------')
+        print("Removing normal")
         self.remove_theory(theory, self.theories)
 
     def remove_mutant_theory(self, theory):
+        print('-----------------')
+        print("Removing mutant")
         self.remove_theory(theory, self.mutant_theories)
 
     def remove_theory(self, theory, theories):
         key = theory.get_theory_code()
+        print('-----------------')
+        print('-----------------')
+        print("REMOVIIIING: ", key)
+        print('-----------------')
         theories_for_context = theories[key]
         index = -1
         for i, th in enumerate(theories_for_context):
             if th.equals(theory):
                 index = i
+        print('Before delete', len(theories_for_context))
         if index >= 0:
+            print('Truly deleting')
             theories_for_context.pop(index)
+        print('After delete', len(theories_for_context))
+        if len(theories_for_context) == 0:
+            theories.pop(key)
+        print('-----------------')
 
     def add_or_replace_mutant_theory(self, theory_to_delete, new_mutant_theory):
         if new_mutant_theory is None:
             return
         new_code = new_mutant_theory.get_theory_code()
-        self.mutant_theories[new_mutant_theory.get_theory_code()] = new_mutant_theory
         if new_code not in self.mutant_theories:
             self.mutant_theories[new_code] = []
         self.mutant_theories[new_code].append(new_mutant_theory)
