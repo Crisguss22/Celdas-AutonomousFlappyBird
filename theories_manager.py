@@ -2,12 +2,14 @@ import json
 import random
 import os.path
 from theory import Theory
+from theory_mutator import TheoryMutator
 
 
 class TheoriesManager:
     def __init__(self):
         self.theories = {}
         self.mutant_theories = {}
+        self.theory_mutator = TheoryMutator()
 
     def get_theories_from_json(self, file_name):
         theories_already_exist = os.path.isfile(file_name)
@@ -15,13 +17,18 @@ class TheoriesManager:
             return None
         with open(file_name, 'r') as f:
             theories_json = json.load(f)
+        self.theories = self.load_theories(theories_json, 'theories')
+        self.mutant_theories = self.load_theories(theories_json, 'mutant_theories')
+
+    def load_theories(self, full_json, theory_type):
+        theories_json = full_json[theory_type]
         loaded_theories = {}
         for code in theories_json.keys():
             theories = []
             for theory_json in theories_json[code]:
-                theories.append(Theory.from_hash(theory_json))
+                theories.append(Theory.from_hash(theory_json, code))
             loaded_theories[code] = theories
-        self.theories = loaded_theories
+        return loaded_theories
 
     def save_theories_to_json(self, file_name):
         data = self.theories_to_json()
@@ -54,6 +61,9 @@ class TheoriesManager:
         theory.set_uses(1)
 
     def add_or_update_theory(self, theory):
+        if theory.is_mutant():
+            theory.add_use()
+            return
         key = theory.get_theory_code()
         if key in self.theories:
             theories_for_context = self.theories[key]
@@ -64,14 +74,19 @@ class TheoriesManager:
                 theories_for_context.append(theory)
         else:
             self.theories[key] = [theory]
+        self.update_mutant_theories(theory)
 
     def update_theory(self, theory):
+        if theory.is_mutant():
+            theory.add_use()
+            return
         key = theory.get_theory_code()
         if key in self.theories:
             theories_for_context = self.theories[key]
             existing_theory = self.theory_already_exists(theories_for_context, theory)
             if existing_theory is not None:
                 existing_theory.add_use()
+        self.update_mutant_theories(theory)
 
     def calculate_theory_utility(self, theory, just_restarted):
         new_state = theory.get_observation_after()
@@ -87,9 +102,9 @@ class TheoriesManager:
 
     def theory_already_exists(self, theories, theory):
         existing_theory = None
-        for i in theories:
-            if i.equals(theory):
-                existing_theory = i
+        for th in theories:
+            if th.equals(theory):
+                existing_theory = th
         return existing_theory
 
     def was_pushed_back(self, previous_state, new_state):
@@ -108,7 +123,6 @@ class TheoriesManager:
             return -5
 
     def calculate_distance_to_gap(self, rel_positions):
-        # TODO: improve calculation, now too hardcodey
         over_bottom = rel_positions[2]
         below_upper = rel_positions[3]
         return over_bottom ** 2 + below_upper ** 2
@@ -142,3 +156,51 @@ class TheoriesManager:
             if possible_theory.get_utility() > greatest_utility_theory.get_utility():
                 greatest_utility_theory = possible_theory
         return greatest_utility_theory, death_actions
+
+    def update_mutant_theories(self, theory):
+        if theory.get_times_used() < 5:
+            return
+        added = self.add_to_mutants()
+        if added:
+            self.remove_theory(theory)
+
+    def add_to_mutants(self, theory):
+        mutant_theory, missing_action = self.theory_mutator.mutated_theory_available(self.mutant_theories, theory)
+        if mutant_theory is not None:
+            mutant_theory.add_use()
+        elif missing_action:
+            mutant_theory = self.theory_mutator.mutation_for_new_action(theory)
+            self.add_or_replace_mutant_theory(None, mutant_theory)
+        else:
+            mutant_theory, old_mutant_theory = self.theory_mutator.new_mutation(self.theories, self.mutant_theories, theory)
+            self.add_or_replace_mutant_theory(old_mutant_theory, mutant_theory)
+        return mutant_theory is not None
+
+    def remove_normal_theory(self, theory):
+        self.remove_theory(theory, self.theories)
+
+    def remove_mutant_theory(self, theory):
+        self.remove_theory(theory, self.mutant_theories)
+
+    def remove_theory(self, theory, theories):
+        key = theory.get_theory_code()
+        theories_for_context = theories[key]
+        index = -1
+        for i, th in enumerate(theories_for_context):
+            if th.equals(theory):
+                index = i
+        if index >= 0:
+            theories_for_context.pop(index)
+
+    def add_or_replace_mutant_theory(self, theory_to_delete, new_mutant_theory):
+        if new_mutant_theory is None:
+            return
+        new_code = new_mutant_theory.get_theory_code()
+        self.mutant_theories[new_mutant_theory.get_theory_code()] = new_mutant_theory
+        if new_code not in self.mutant_theories:
+            self.mutant_theories[new_code] = []
+        self.mutant_theories[new_code].append(new_mutant_theory)
+        if theory_to_delete is None:
+            return
+        else:
+            self.remove_mutant_theory(theory_to_delete)

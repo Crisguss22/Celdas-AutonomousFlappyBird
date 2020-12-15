@@ -1,4 +1,5 @@
 from observation import Observation
+from mutated_observation import MutatedObservation
 
 
 class Theory:
@@ -8,10 +9,15 @@ class Theory:
         self.observation_after = None
         self.utility = 0
         self.times_used = 0
+        self.mutant = False
 
     @classmethod
-    def from_hash(cls, json):
-        observation_before = Observation.from_hash(json['observation_before'])
+    def from_hash(cls, json, code):
+        mutant = json['mutant']
+        if mutant:
+            observation_before = MutatedObservation(code)
+        else:
+            observation_before = Observation.from_hash(json['observation_before'])
         jump = json['jump']
         new_theory = cls(observation_before, jump)
         observation_after = Observation.from_hash(json['observation_after'])
@@ -38,6 +44,9 @@ class Theory:
     def set_observation_after(self, observation):
         self.observation_after = observation
 
+    def set_observation_before(self, observation):
+        self.observation_before = observation
+
     def set_utility(self, utility):
         self.utility = utility
 
@@ -46,6 +55,12 @@ class Theory:
 
     def set_uses(self, uses):
         self.times_used = uses
+
+    def is_mutant(self):
+        return self.mutant
+
+    def make_mutant(self):
+        self.mutant = True
 
     def get_theory_code(self):
         return self.observation_before.get_code()
@@ -71,6 +86,7 @@ class Theory:
         return {
             'observation_before': self.observation_before.to_hash(),
             'jump': self.jump,
+            'mutant': self.mutant,
             'observation_after': self.observation_after.to_hash(),
             'utility': int(self.utility),
             'times_used': int(self.times_used)
