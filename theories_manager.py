@@ -252,7 +252,6 @@ class TheoriesManager:
         print('After count: ', len(self.mutant_theories))
         print('------------------')
 
-
     def add_normal_theories_to_mutants(self):
         pass
 

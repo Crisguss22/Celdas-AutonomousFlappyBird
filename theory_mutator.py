@@ -56,7 +56,6 @@ class TheoryMutator:
                 x_distance += step
             return found_code
         else:
-            print('No no no')
             return None
 
     def find_old_mutated_code_on_x(self, mutant_theories, theory_code):

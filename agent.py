@@ -54,13 +54,13 @@ class Agent:
             self.bird_act(jump)
 
     def choose_action(self):
-        if self.action_counter < 150:
+        if self.action_counter < 1000:
             self.act_from_theories_with_exploration(19)
-        elif self.action_counter < 300:
+        elif self.action_counter < 2000:
             self.act_from_theories_with_exploration(10)
-        elif self.action_counter < 500:
+        elif self.action_counter < 3000:
             self.act_from_theories_with_exploration(5)
-        elif self.action_counter < 600:
+        elif self.action_counter < 3500:
             self.act_from_theories_with_exploration(2)
         else:
             self.act_from_theories_with_exploration(0)
@@ -88,7 +88,7 @@ class Agent:
 
     def bird_act(self, jump):
         if jump:
-            self.turns_for_jump = 9
+            self.turns_for_jump = 10
             self.flappybird.holdKeyDown()
         else:
             self.flappybird.releaseKey()
