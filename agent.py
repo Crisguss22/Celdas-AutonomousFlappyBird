@@ -52,13 +52,13 @@ class Agent:
             self.bird_act(jump)
 
     def choose_action(self):
-        if self.action_counter < 1500:
+        if self.action_counter < 150:
             self.act_from_theories_with_exploration(19)
-        elif self.action_counter < 3000:
+        elif self.action_counter < 300:
             self.act_from_theories_with_exploration(10)
-        elif self.action_counter < 5000:
+        elif self.action_counter < 500:
             self.act_from_theories_with_exploration(5)
-        elif self.action_counter < 6000:
+        elif self.action_counter < 600:
             self.act_from_theories_with_exploration(2)
         else:
             self.act_from_theories_with_exploration(0)

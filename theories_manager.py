@@ -234,10 +234,13 @@ class TheoriesManager:
         self.reduce_normal_theories()
 
     def clean_mutant_theories(self):
+        print('------------------')
+        print('CLEANING MUTANTS!!')
         for code in self.mutant_theories.keys():
             mutated_code = self.theory_mutator.find_mutated_code_on_x(code)
             if mutated_code != code:
                 self.theory_mutator.merge_theories(self.mutant_theories[code], self.mutant_theories[mutated_code])
+        print('------------------')
 
 
     def add_normal_theories_to_mutants(self):
