@@ -10,6 +10,13 @@ class TheoryMutator:
         self.x_current_limit = 20
         self.x_current_neg_limit = -20
 
+    def find_mutant_theories_applicable(self, mutant_theories, observation):
+        mutated_code = self.find_mutated_code_on_x(observation.get_code())
+        if mutated_code in mutant_theories:
+            return mutant_theories[mutated_code]
+        else:
+            return []
+
     def mutated_theory_available(self, mutant_theories, theory):
         mutated_code = self.find_mutated_code_on_x(theory.get_theory_code())
         mutant_theory = None
@@ -25,6 +32,23 @@ class TheoryMutator:
             if self.get_x_distance(theory_code) < 0:
                 distance = self.x_current_neg_limit
             return 'xd{0}ob{1}'.format(distance, theory_code.split('ob')[1])
+        else:
+            return None
+
+    def find_old_mutated_code_on_x(self, mutant_theories, theory_code):
+        if self.code_is_within_possible_x_mutation(theory_code):
+            remaining_code = theory_code.split('ob')[1]
+            code = None
+            min_distance = self.x_current_limit
+            max_distance = 10
+            if self.get_x_distance(theory_code) < 0:
+                min_distance = self.x_current_neg_limit
+                max_distance = -10
+            for x in range(min_distance, max_distance):
+                possible_code = 'xd{0}ob{1}'.format(x, remaining_code)
+                if possible_code in mutant_theories:
+                    code = possible_code
+            return code
         else:
             return None
 
@@ -57,7 +81,7 @@ class TheoryMutator:
         possible_code = self.mutate_new_code_on_x(theory.get_theory_code())
         if possible_code is not None:
             print('Possible MUTANT THEORY')
-            old_code = self.find_mutated_code_on_x(theory.get_theory_code())
+            old_code = self.find_old_mutated_code_on_x(mutant_theories, theory.get_theory_code())
             if old_code in mutant_theories:
                 print('There was old MUTANT THEORY')
                 old_mutant_theory = self.find_mutant_equivalent(mutant_theories[old_code], theory)
@@ -66,7 +90,8 @@ class TheoryMutator:
                 print('Brand new MUTANT THEORY')
                 print('Possible code', possible_code)
                 mutant_theory = self.create_mutant_theory(possible_code, theory)
-            self.update_x_limit(theory)
+            if mutant_theory is not None:
+                self.update_x_limit(theory)
         return mutant_theory, old_mutant_theory
 
     def update_mutant_theory(self, old_mutant_theory, new_theory, possible_code):
@@ -78,6 +103,7 @@ class TheoryMutator:
     def create_mutant_theory(self, possible_code, new_theory):
         observation_before = MutatedObservation(possible_code)
         mutant_theory = copy.deepcopy(new_theory)
+        mutant_theory.make_mutant()
         mutant_theory.set_observation_before(observation_before)
         return mutant_theory
 
@@ -108,8 +134,9 @@ class TheoryMutator:
 
     def merge_theories(self, old_mutant_theory, new_theory, possible_code):
         observation_before = MutatedObservation(possible_code)
-        total_uses = old_mutant_theory.get_uses() + new_theory.get_uses()
+        total_uses = old_mutant_theory.get_times_used() + new_theory.get_times_used()
         new_mutant_theory = copy.deepcopy(new_theory)
+        new_mutant_theory.make_mutant()
         new_mutant_theory.set_observation_before(observation_before)
         new_mutant_theory.set_uses(total_uses)
         return new_mutant_theory

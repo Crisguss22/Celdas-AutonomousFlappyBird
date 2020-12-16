@@ -43,10 +43,10 @@ class TheoriesManager:
     def theories_hash(self, theories):
         theories_hash = {}
         for code in theories.keys():
-            theories = []
+            theories_for_code = []
             for theory in theories[code]:
-                theories.append(theory.to_hash())
-            theories_hash[code] = theories
+                theories_for_code.append(theory.to_hash())
+            theories_hash[code] = theories_for_code
         return theories_hash
 
     def theories_size(self):
@@ -134,13 +134,18 @@ class TheoriesManager:
 
     def get_best_theory(self, observation):
         theory_code = observation.get_code()
+        mutant_code = self.theory_mutator.find_mutated_code_on_x(theory_code)
         best_theory = None
         both_actions_already_explored = False
-        theory_may_cause_death = False
-        if theory_code in self.theories:
+        death_actions = [False, False]
+        if mutant_code in self.mutant_theories:
+            both_actions_already_explored = len(self.explored_actions(self.mutant_theories[mutant_code])) == 2
+            best_theory, death_actions = self.theory_with_greatest_utility(self.mutant_theories[mutant_code])
+        need_more_search = best_theory is None or best_theory.get_utility() < 0 or not both_actions_already_explored
+        if theory_code in self.theories and need_more_search:
             both_actions_already_explored = len(self.explored_actions(self.theories[theory_code])) == 2
-            best_theory, theory_may_cause_death = self.theory_with_greatest_utility(self.theories[theory_code])
-        return best_theory, both_actions_already_explored, theory_may_cause_death
+            best_theory, death_actions = self.theory_with_greatest_utility(self.theories[theory_code])
+        return best_theory, both_actions_already_explored, death_actions
 
     def explored_actions(self, theories):
         actions = []
@@ -171,20 +176,14 @@ class TheoriesManager:
 
     def add_to_mutants(self, theory):
         mutant_theory, missing_action = self.theory_mutator.mutated_theory_available(self.mutant_theories, theory)
-        print('-----------------')
-        print('-----------------')
         if mutant_theory is not None:
-            print('EXISTING MUTANT THEORY')
             mutant_theory.add_use()
         elif missing_action:
-            print('MISSING ACTION')
             mutant_theory = self.theory_mutator.mutation_for_new_action(theory)
             self.add_or_replace_mutant_theory(None, mutant_theory)
         else:
-            print('NEW MUTANT THEORY')
             mutant_theory, old_mutant_theory = self.theory_mutator.new_mutation(self.mutant_theories, theory)
             self.add_or_replace_mutant_theory(old_mutant_theory, mutant_theory)
-        self.print_relevant(mutant_theory)
         return mutant_theory is not None
 
     def print_relevant(self, theory):
@@ -197,18 +196,13 @@ class TheoriesManager:
         print('-----------------')
 
     def remove_normal_theory(self, theory):
-        print('-----------------')
-        print("Removing normal")
         self.remove_theory(theory, self.theories)
 
     def remove_mutant_theory(self, theory):
-        print('-----------------')
-        print("Removing mutant")
         self.remove_theory(theory, self.mutant_theories)
 
     def remove_theory(self, theory, theories):
         key = theory.get_theory_code()
-        print('-----------------')
         print('-----------------')
         print("REMOVIIIING: ", key)
         print('-----------------')
@@ -217,14 +211,10 @@ class TheoriesManager:
         for i, th in enumerate(theories_for_context):
             if th.equals(theory):
                 index = i
-        print('Before delete', len(theories_for_context))
         if index >= 0:
-            print('Truly deleting')
             theories_for_context.pop(index)
-        print('After delete', len(theories_for_context))
         if len(theories_for_context) == 0:
             theories.pop(key)
-        print('-----------------')
 
     def add_or_replace_mutant_theory(self, theory_to_delete, new_mutant_theory):
         if new_mutant_theory is None:
@@ -237,3 +227,21 @@ class TheoriesManager:
             return
         else:
             self.remove_mutant_theory(theory_to_delete)
+
+    def clean_theories(self):
+        self.clean_mutant_theories()
+        self.add_normal_theories_to_mutants()
+        self.reduce_normal_theories()
+
+    def clean_mutant_theories(self):
+        for code in self.mutant_theories.keys():
+            mutated_code = self.theory_mutator.find_mutated_code_on_x(code)
+            if mutated_code != code:
+                self.theory_mutator.merge_theories(self.mutant_theories[code], self.mutant_theories[mutated_code])
+
+
+    def add_normal_theories_to_mutants(self):
+        pass
+
+    def reduce_normal_theories(self):
+        pass

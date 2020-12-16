@@ -20,6 +20,8 @@ class Theory:
             observation_before = Observation.from_hash(json['observation_before'])
         jump = json['jump']
         new_theory = cls(observation_before, jump)
+        if mutant:
+            new_theory.make_mutant()
         observation_after = Observation.from_hash(json['observation_after'])
         new_theory.set_observation_after(observation_after)
         new_theory.set_utility(json['utility'])

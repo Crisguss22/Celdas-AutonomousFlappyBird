@@ -44,7 +44,7 @@ class Agent:
             self.current_theory = None
             self.bird_act(False)
         else:
-            if self.action_counter > 1 and self.action_counter % 10000 == 0:
+            if self.action_counter > 1 and self.action_counter % 100 == 0:
                 self.theories_manager.save_theories_to_json('theories_saved.json')
             jump = self.choose_action()
             self.action_counter += 1
@@ -52,19 +52,21 @@ class Agent:
             self.bird_act(jump)
 
     def choose_action(self):
-        if self.action_counter < 2000:
+        if self.action_counter < 1500:
             self.act_from_theories_with_exploration(19)
-        elif self.action_counter < 5000:
+        elif self.action_counter < 3000:
             self.act_from_theories_with_exploration(10)
-        elif self.action_counter < 10000:
+        elif self.action_counter < 5000:
             self.act_from_theories_with_exploration(5)
-        else:
+        elif self.action_counter < 6000:
             self.act_from_theories_with_exploration(2)
+        else:
+            self.act_from_theories_with_exploration(0)
         return self.current_theory.get_jump()
 
     def update_theory(self):
         theory_is_finished = self.current_theory.is_finished()
-        theory_was_correct = self.current_theory.is_correct(self.current_observation)
+        theory_was_correct = self.current_theory.is_correct(self.current_observation) or self.current_theory.is_mutant()
         if theory_is_finished and theory_was_correct:
             self.theories_manager.update_theory(self.current_theory)
         elif theory_is_finished:
@@ -104,21 +106,28 @@ class Agent:
                 # theory_may_cause_death = False
                 print('DEATH FOR BOTH ACTIONS')
             elif theory_may_cause_death:
-                print('POSSIBLE DEATH!! IF ', best_theory.get_jump())
+                print('POSSIBLE DEATH!! IF JUMP IS ', best_theory.get_jump())
             if both_actions_already_explored or should_not_explore:
                 self.current_theory = best_theory
-                print('THEORY BASED: ', self.next_action())
+                self.print_next_action('THEORY BASED: ')
             else:
                 opposite_action = not best_theory.get_jump()
                 self.current_theory = self.theories_manager.new_theory(self.current_observation, opposite_action)
-                print('EXPLORING: ', self.next_action())
+                self.print_next_action('EXPLORING: ')
         else:
             self.random_act()
 
     def random_act(self):
         jump = self.my_random() == 2
         self.current_theory = self.theories_manager.new_theory(self.current_observation, jump)
-        print('ACTING RANDOM: ', self.next_action())
+        self.print_next_action('ACTING RANDOM: ')
+
+    def print_next_action(self, theory_origin):
+        print('-----')
+        print(theory_origin, self.next_action())
+        print('Theory code: ', self.current_theory.get_theory_code())
+        print('Mutant: ', self.current_theory.is_mutant())
+        print('-----')
 
     def next_action(self):
         if self.current_theory.get_jump():
