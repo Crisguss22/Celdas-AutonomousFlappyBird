@@ -231,7 +231,6 @@ class TheoriesManager:
 
     def clean_theories(self):
         self.clean_mutant_theories()
-        self.add_normal_theories_to_mutants()
         self.reduce_normal_theories()
 
     def clean_mutant_theories(self):
@@ -252,8 +251,47 @@ class TheoriesManager:
         print('After count: ', len(self.mutant_theories))
         print('------------------')
 
-    def add_normal_theories_to_mutants(self):
-        pass
-
     def reduce_normal_theories(self):
-        pass
+        print('------------------')
+        print('CLEANING NORMALS!!')
+        print('Before count: ', len(self.theories))
+        for code in self.theories.keys():
+            self.theories[code] = self.compressed_theories(self.theories[code])
+        print('After count: ', len(self.theories))
+        print('------------------')
+
+    def compressed_theories(self, theories):
+        final_theories = []
+        jump_theories = []
+        fall_theories = []
+        for theory in theories:
+            if theory.get_jump():
+                jump_theories.append(theory)
+            else:
+                fall_theories.append(theory)
+        if len(fall_theories) > 0:
+            fall_theory = self.merged_theory(fall_theories)
+            if fall_theory.get_utility() == -1000:
+                fall_theory.set_utility(-999)
+            final_theories.append(fall_theory)
+        if len(jump_theories) > 0:
+            jump_theory = self.merged_theory(jump_theories)
+            final_theories.append(jump_theory)
+        return final_theories
+
+    def merged_theory(self, theories):
+        print('-------')
+        first_theory = theories[0]
+        if len(theories) > 1:
+            print(first_theory.get_theory_code())
+            for i in range(1, len(theories)-1):
+                theory = theories[i]
+                print(theory.get_theory_code())
+                total_uses = theory.get_times_used() + first_theory.get_times_used()
+                first_theory_causes_death = first_theory.get_utility() < -50
+                if (-50 > theory.get_utility() or theory.get_utility() > 0) and not first_theory_causes_death:
+                    first_theory = theory
+                first_theory.set_uses(total_uses)
+            print(first_theory.get_theory_code())
+        print('-------')
+        return first_theory

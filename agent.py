@@ -29,7 +29,6 @@ class Agent:
         print("Cycles: ", self.action_counter)
         #print("Current Observation: ", self.current_observation.get_code())
         #print("Dead: ", self.flappybird.dead)
-        print("Normal Theory count: ", self.theories_manager.theories_size()) #Not really theory count, actually scenarios theorized about
 
     def act(self):
         if self.turns_for_jump > 0:
