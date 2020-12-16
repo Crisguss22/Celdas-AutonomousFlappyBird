@@ -44,7 +44,9 @@ class Agent:
             self.current_theory = None
             self.bird_act(False)
         else:
-            if self.action_counter > 1 and self.action_counter % 100 == 0:
+            if self.action_counter > 1 and self.action_counter % 250 == 0:
+                self.theories_manager.clean_theories()
+            if self.action_counter > 1 and self.action_counter % 500 == 0:
                 self.theories_manager.save_theories_to_json('theories_saved.json')
             jump = self.choose_action()
             self.action_counter += 1

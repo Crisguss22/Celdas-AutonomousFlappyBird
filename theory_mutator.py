@@ -10,15 +10,26 @@ class TheoryMutator:
         self.x_current_limit = 20
         self.x_current_neg_limit = -20
 
+    def initialize_limits(self, mutant_theories):
+        for theories in mutant_theories.values():
+            self.update_x_limit(theories[0])
+
+    def update_x_limit(self, theory):
+        new_distance = self.get_x_distance(theory.get_theory_code())
+        if self.x_current_limit > new_distance > 0:
+            self.x_current_limit = new_distance
+        elif self.x_current_neg_limit < new_distance < 0:
+            self.x_current_neg_limit = new_distance
+
     def find_mutant_theories_applicable(self, mutant_theories, observation):
-        mutated_code = self.find_mutated_code_on_x(observation.get_code())
+        mutated_code = self.find_mutated_code_on_x(mutant_theories, observation.get_code())
         if mutated_code in mutant_theories:
             return mutant_theories[mutated_code]
         else:
             return []
 
     def mutated_theory_available(self, mutant_theories, theory):
-        mutated_code = self.find_mutated_code_on_x(theory.get_theory_code())
+        mutated_code = self.find_mutated_code_on_x(mutant_theories, theory.get_theory_code())
         mutant_theory = None
         missing_action = False
         if mutated_code in mutant_theories:
@@ -26,13 +37,26 @@ class TheoryMutator:
             missing_action = mutant_theory is None
         return mutant_theory, missing_action
 
-    def find_mutated_code_on_x(self, theory_code):
+    def find_mutated_code_on_x(self, mutant_theories, theory_code):
         if self.code_is_within_current_x_mutation(theory_code):
-            distance = self.x_current_limit
-            if self.get_x_distance(theory_code) < 0:
-                distance = self.x_current_neg_limit
-            return 'xd{0}ob{1}'.format(distance, theory_code.split('ob')[1])
+            found = False
+            found_code = None
+            positive = self.get_x_distance(theory_code) > 0
+            if positive:
+                x_distance = self.x_current_limit
+                step = 1
+            else:
+                x_distance = self.x_current_neg_limit
+                step = -1
+            while not found and -12 <= x_distance <= 12:
+                possible_code = 'xd{0}ob{1}'.format(x_distance, theory_code.split('ob')[1])
+                if possible_code in mutant_theories:
+                    found = True
+                    found_code = possible_code
+                x_distance += step
+            return found_code
         else:
+            print('No no no')
             return None
 
     def find_old_mutated_code_on_x(self, mutant_theories, theory_code):
@@ -71,7 +95,7 @@ class TheoryMutator:
 
     def code_is_within_possible_x_mutation(self, theory_code):
         x_distance = self.get_x_distance(theory_code)
-        return x_distance >= self.x_limit or x_distance <= self.x_neg_limit
+        return x_distance > self.x_limit or x_distance < self.x_neg_limit
 
     def get_x_distance(self, theory_code):
         return int(theory_code.split('ob')[0].split('d')[1])
@@ -117,20 +141,13 @@ class TheoryMutator:
     def theories_are_equivalent(self, theory1, theory2):
         return theory1.get_utility() == theory2.get_utility() and theory1.get_jump() == theory2.get_jump()
 
-    def mutation_for_new_action(self, theory):
-        mutated_code = self.find_mutated_code_on_x(theory.get_theory_code())
+    def mutation_for_new_action(self, mutant_theories, theory):
+        mutated_code = self.find_mutated_code_on_x(mutant_theories, theory.get_theory_code())
         new_mutant_theory = copy.deepcopy(theory)
         new_mutant_theory.make_mutant()
         observation_before = MutatedObservation(mutated_code)
         new_mutant_theory.set_observation_before(observation_before)
         return new_mutant_theory
-
-    def update_x_limit(self, theory):
-        new_distance = self.get_x_distance(theory.get_theory_code())
-        if self.x_current_limit > new_distance > 0:
-            self.x_current_limit = new_distance
-        elif self.x_current_neg_limit < new_distance < 0:
-            self.x_current_neg_limit = new_distance
 
     def merge_theories(self, old_mutant_theory, new_theory, possible_code):
         observation_before = MutatedObservation(possible_code)
@@ -143,3 +160,12 @@ class TheoryMutator:
 
     def get_current_limits(self):
         return [self.x_current_limit, self.x_current_neg_limit]
+
+    def merge_all_theories(self, old_theories, current_theories):
+        for i, old_theory in enumerate(old_theories):
+            current_equivalent = self.find_mutant_equivalent(current_theories, old_theory)
+            if current_equivalent is not None:
+                total_uses = old_theory.get_times_used() + current_equivalent.get_times_used()
+                current_equivalent.set_uses(total_uses)
+                old_theories.pop(i)
+        return len(old_theories) == 0

@@ -19,6 +19,7 @@ class TheoriesManager:
             theories_json = json.load(f)
         self.theories = self.load_theories(theories_json, 'theories')
         self.mutant_theories = self.load_theories(theories_json, 'mutant_theories')
+        self.theory_mutator.initialize_limits(self.mutant_theories)
 
     def load_theories(self, full_json, theory_type):
         theories_json = full_json[theory_type]
@@ -134,7 +135,7 @@ class TheoriesManager:
 
     def get_best_theory(self, observation):
         theory_code = observation.get_code()
-        mutant_code = self.theory_mutator.find_mutated_code_on_x(theory_code)
+        mutant_code = self.theory_mutator.find_mutated_code_on_x(self.mutant_theories, theory_code)
         best_theory = None
         both_actions_already_explored = False
         death_actions = [False, False]
@@ -179,7 +180,7 @@ class TheoriesManager:
         if mutant_theory is not None:
             mutant_theory.add_use()
         elif missing_action:
-            mutant_theory = self.theory_mutator.mutation_for_new_action(theory)
+            mutant_theory = self.theory_mutator.mutation_for_new_action(self.mutant_theories, theory)
             self.add_or_replace_mutant_theory(None, mutant_theory)
         else:
             mutant_theory, old_mutant_theory = self.theory_mutator.new_mutation(self.mutant_theories, theory)
@@ -236,10 +237,19 @@ class TheoriesManager:
     def clean_mutant_theories(self):
         print('------------------')
         print('CLEANING MUTANTS!!')
+        print('Before count: ', len(self.mutant_theories))
+        keys_to_delete = []
         for code in self.mutant_theories.keys():
-            mutated_code = self.theory_mutator.find_mutated_code_on_x(code)
+            mutated_code = self.theory_mutator.find_mutated_code_on_x(self.mutant_theories, code)
             if mutated_code != code:
-                self.theory_mutator.merge_theories(self.mutant_theories[code], self.mutant_theories[mutated_code])
+                print('About to merge ', code, ' into ', mutated_code)
+                all_merged = self.theory_mutator.merge_all_theories(self.mutant_theories[code], self.mutant_theories[mutated_code])
+                if all_merged:
+                    keys_to_delete.append(code)
+        print(keys_to_delete)
+        for key in keys_to_delete:
+            self.mutant_theories.pop(key)
+        print('After count: ', len(self.mutant_theories))
         print('------------------')
 
 
